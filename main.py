@@ -5,6 +5,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 
+from animator import Animator
 from snake_game import SnakeGame
 from game_demo import plot_board
 
@@ -97,6 +98,7 @@ if __name__ == '__main__':
     steps_to_update_target_model = 0
 
     for episode in range(train_episodes):
+        animator = Animator()
         total_training_rewards = 0
         observation, _, _, _ = game.reset()
         done = False
@@ -110,7 +112,7 @@ if __name__ == '__main__':
                 action = np.random.randint(0, 3) - 1
             else:  # EXPLOITATION
                 predicted = model.predict(observation.reshape(-1, 32, 32, 3))  # .flatten()
-                action = np.argmax(predicted)
+                action = np.argmax(predicted) - 1
             new_observation, reward, done, info = game.step(action)
             replay_memory.append([observation, action, reward, new_observation, done])
 
@@ -118,12 +120,14 @@ if __name__ == '__main__':
             if len(replay_memory) >= MIN_REPLAY_SIZE and (steps_to_update_target_model % 4 == 0 or done):
                 train(replay_memory, model, target_model)
             observation = new_observation
-            # if episode == 1:
-            #     plot_board(f"{episode}{steps_to_update_target_model}.png", observation, action)
+
+            # plot_board(f"{episode}{steps_to_update_target_model}.png", observation, action)
+            animator.add_to_animation(observation)
             total_training_rewards += reward
             if done:
                 print(f"Rewards: {total_training_rewards} after n steps = {episode} with final reward = {reward}")
                 total_training_rewards += 1
+                animator.save_animation(f"Episode_{episode}")
 
                 if steps_to_update_target_model >= 100:
                     print('Copying main network weights to the target network weights')
