@@ -19,17 +19,17 @@ PERGUNTAS/QUESTIONS:
 
 Q1: Explain and justify the architecture of your agent, describing the network, input and output, and what experiments you did to choose this particular architecture.
 Q1; Explique e justifique a arquitectura do seu agente, descrevendo a rede, os valores de entrada e saída e que experiências fez para escolher esta rede em particular.
-R1:
+R1: Utilizámos uma rede que consiste numa secção inicial de camadas de convolução para extrair features relevantes que são fornecidas à secção seguinte da rede, que consiste em várias camadas densas com ativação relu. A rede termina com uma camada de ativação linear dado que a aproximação da Q Table consiste num problema de regressão. Escolhemos esta rede pois camadas de convolução são utéis para extrair features de imagens e a secção densa conseguirá aprender a função Q com base nestas. É de notar que não utilizámos pooling para perservar os detalhes da informação original.
 
 
 Q2: Describe the scenario for which you tried to optimize your agent, justifying your choice and describing the experiments you did to select this scenario.
 Q2: Descreva o cenário para o qual tentou optimizar o seu agente, justificando a sua escolha e descrevendo que experiências fez para seleccionar este cenário.
-R2:
+R2: Tentámos otimizar o agente numa grelha 14x14 para tentar minimizar o problema das rare rewards.
 
 
 Q3: Explain how you generate the experiences for training your agent. Do not forget to explain the details like the balance between exploitation and exploration, how experiences are selected, what information you store in each experience, how large is the pool of experiences and how frequently are new experiences generated. Justify your choices.
 Q3: Explique como gerou as experiências para treinar seu agente. Não se esqueça de explicar os detalhes como o equilíbrio entre exploração aleatória e guiada (exploration e exploitation), como as experiências são selecionadas, que informação guarda em cada experiência, quão grande é o conjunto de experiências e com que frequência novas experiências são geradas. Justifique estas escolhas.
-R3:
+R3: Para auxiliar o agente a aprender mais rapidamente, gerámos memórias recorrendo a um agente greedy, que escolhia sempre a ação que o colocasse à menor distância de manhattnan da maçã. Cada uma destas memórias foi armazenada no formato SARSA (State, Action, Reward, (new) State, )
 
 
 Q4: Explain how you trained your agent: the algorithm used, the discount factor (gamma), the schedule for generating new experiences and training the agent and other techniques. Justify your choices and explain what experiments you did and which alternatives you tried.
