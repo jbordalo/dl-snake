@@ -18,10 +18,10 @@ train_episodes = 10000
 
 
 def train(replay_memory, model, target_model, batch_size=64 * 2):
-    discount_factor = 0.75
+    discount_factor = 0.95
     # batch_size = 64 * 2
     #     learning_rate = float(model.optimizer._decayed_lr(tf.float32)) * 10
-    learning_rate = 0.25
+    learning_rate = 0.7
     # food_examples = [memory for memory in replay_memory if memory[2] >= 1.0]
     # death_examples = [memory for memory in replay_memory if memory[4]]
     #
@@ -48,7 +48,7 @@ def train(replay_memory, model, target_model, batch_size=64 * 2):
             max_future_q = reward + discount_factor * np.max(future_qs_list[index])
 
             # if reward >= 1.0:
-            # print(f"reward: {reward} future shit: {np.max(future_qs_list[index])} final: {max_future_q}")
+            # print(f"reward: {reward} pred future: {np.max(future_qs_list[index])} final: {max_future_q}")
             # print(f"prev q: {current_qs} future q: {(1 - learning_rate) * current_qs[action_index] + learning_rate * max_future_q} action: {action}")
             # only change value for the action taken
             current_qs[action_index] = (1 - learning_rate) * current_qs[action_index] + learning_rate * max_future_q
@@ -66,7 +66,7 @@ def train(replay_memory, model, target_model, batch_size=64 * 2):
 
 
 def agent(state_shape, action_shape):
-    learning_rate = 0.03
+    learning_rate = 0.01
 
     inputs = keras.layers.Input(shape=state_shape, name='inputs')
 
@@ -85,7 +85,7 @@ def agent(state_shape, action_shape):
     #
     # layer = keras.layers.GlobalAveragePooling2D()(layer)
     layer = keras.layers.Flatten()(layer)
-    layer = keras.layers.Dense(256, activation='relu', kernel_initializer="he_uniform")(layer)
+    # layer = keras.layers.Dense(256, activation='relu', kernel_initializer="he_uniform")(layer)
     layer = keras.layers.Dense(128, activation='relu', kernel_initializer="he_uniform")(layer)
     layer = keras.layers.Dense(64, activation='relu', kernel_initializer="he_uniform")(layer)
     layer = keras.layers.Dense(32, activation='relu', kernel_initializer="he_uniform")(layer)
@@ -95,7 +95,8 @@ def agent(state_shape, action_shape):
 
     model = keras.models.Model(inputs=inputs, outputs=layer)
 
-    model.compile(loss="huber", optimizer=tf.keras.optimizers.SGD(learning_rate=learning_rate),
+    model.compile(loss="huber",
+                  optimizer=tf.keras.optimizers.SGD(learning_rate=learning_rate, decay=0.00005),
                   metrics=['mse'])
 
     model.summary()
@@ -117,7 +118,7 @@ def fake_grow_snake(head, d):
     return [y, x]
 
 
-def plswrok(d):
+def overflow_direction(d):
     if d < 0:
         return 3
     elif d > 3:
@@ -135,9 +136,7 @@ def argmin(arr):
 
 def get_greedy_action():
     score, apple, head, tail, direction = game.get_state()
-    # apple_dir = np.array(apple[0]) - np.array(head)
-    # current_dir = np.array(head) - np.array(tail[0])
-    dist = [cityblock(np.array(apple[0]), fake_grow_snake(head, plswrok(direction + d))) for d in range(-1, 2)]
+    dist = [cityblock(np.array(apple[0]), fake_grow_snake(head, overflow_direction(direction + d))) for d in range(-1, 2)]
     return argmin(dist) - 1
 
 
@@ -160,8 +159,7 @@ def generate_examples(n_examples, log=True):
             total_training_rewards += reward
             if done:
                 if log:
-                    print(
-                        f"Rewards: {total_training_rewards:.1f} after n steps = {episode} with final score = {info['score']:.1f}")
+                    print(f"Rewards: {total_training_rewards:.1f} after n steps = {episode} with final score = {info['score']:.1f}")
                 total_training_rewards += 1
                 # animator.save_animation(f"Example_{episode}")
                 break
@@ -185,7 +183,7 @@ if __name__ == '__main__':
     WIDTH = HEIGHT = 14
     BORDER = 9
     STATE_SHAPE = (32, 32, 3)
-    game = SnakeGame(width=WIDTH, height=HEIGHT, border=BORDER, grass_growth=0, max_grass=0, food_amount=1)
+    game = SnakeGame(width=WIDTH, height=HEIGHT, border=BORDER, grass_growth=0.0005, max_grass=0.05, food_amount=1)
 
     epsilon = 1
     max_epsilon = 1
@@ -200,20 +198,15 @@ if __name__ == '__main__':
 
     replay_memory = deque(maxlen=MEMORY_SIZE)
     generate_examples(5000)
-    # for i in range(int(len(replay_memory) / 128)):
-    #     train(replay_memory, model, target_model, batch_size=128)
-    #     if i % 8 == 0:
-    #         target_model.set_weights(model.get_weights())
-    # replay_memory = deque(maxlen=MEMORY_SIZE)
-    #     steps_to_update_target_model = 0
+    steps_to_update_target_model = 0
 
     for episode in range(train_episodes):
         if episode > 9950 or episode % 100 == 0:
             animator = Animator()
         total_training_rewards = 0
-        #         generate_examples(1, False)
-        #         generate_near_reward_or_ending_examples(5, get_straight_only_action)
-        #         generate_near_reward_or_ending_examples(20, get_greedy_action)
+        # generate_examples(1, False)
+        # generate_near_reward_or_ending_examples(5, get_straight_only_action)
+        # generate_near_reward_or_ending_examples(20, get_greedy_action)
         observation, _, _, _ = game.reset()
         done = False
         n_steps = 0
@@ -223,14 +216,13 @@ if __name__ == '__main__':
             # game.board_state()
 
             random_number = np.random.rand()
-            # random_number = 1
             if random_number <= epsilon:  # EXPLORATION
                 # action can be -1, 0 or 1
                 # action = get_action()
 
                 action = np.random.randint(0, 3) - 1
             else:  # EXPLOITATION
-                predicted = model.predict(observation.reshape(-1, 32, 32, 3))  # .flatten()
+                predicted = model.predict(observation.reshape(-1, 32, 32, 3))
                 action = np.argmax(predicted) - 1
             new_observation, reward, done, info = game.step(action)
             replay_memory.append([observation, action, reward, new_observation, done])
@@ -245,10 +237,8 @@ if __name__ == '__main__':
                 animator.add_to_animation(observation)
             total_training_rewards += reward
             if done:
-                print(
-                    f"Episode: {episode} Rewards: {total_training_rewards:.1f} after n steps = {n_steps} with final score = {info['score']:.1f}")
-                print(
-                    f"q pred: {model.predict(observation.reshape(-1, 32, 32, 3))} action: {action} random: {random_number <= epsilon}")
+                print(f"Episode: {episode} Rewards: {total_training_rewards:.1f} after n steps = {n_steps} with final score = {info['score']:.1f}")
+                print(f"q pred: {model.predict(observation.reshape(-1, 32, 32, 3))} action: {action} random: {random_number <= epsilon}")
                 total_training_rewards += 1
                 if episode > 9950 or episode % 100 == 0:
                     animator.save_animation(f"Episode_{episode}")
